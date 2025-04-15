@@ -1,0 +1,109 @@
+⚙️ MODIFIED TECH STACK – Next.js + Verilog
+✅ Project Title
+“DDR5 Memory Controller Visualizer & Simulator”
+
+🧱 UPDATED TECH STACK
+🎨 Frontend – UI & Animation (Next.js)
+Component	Technology
+Framework	Next.js (App Router)
+Styling	Tailwind CSS
+Animations	Framer Motion, Lottie, SVG/Canvas
+Charts & Diagrams	D3.js for timing diagrams & data flow
+State Management	Zustand or Redux Toolkit
+UI Components	shadcn/ui or Radix UI
+Build Tool	 local Next.js server
+🔌 Backend (Simulation/Logic)
+Component	Technology
+Memory Simulation Core	Verilog (executed via WebAssembly or local runner)
+Controller Logic	Written in Verilog modules
+Integration Method	 run locally via API
+Simulation Runner	iverilog (local)
+API Layer (optional for desktop/local runs)	Node.js with Express or child_process to run simulation
+
+🔧 FEATURES TO IMPLEMENT (Now Tech-Ready)
+💡 Architecture Viewer (Next.js + SVG)
+Clickable channel, bank, group, row
+
+Tooltip: Hover shows metadata
+
+Animates selected memory block activation
+
+🎬 Data Transfer Animator (Framer Motion or Canvas)
+Flow from CPU → Controller → PHY → Memory
+
+Shows burst transfer with 16/32 packets
+
+Color coding: ACT, READ, WRITE, PRE, ZQCAL
+
+⚙️ FSM Simulator (Next.js)
+Visual Finite State Machine of controller (in Verilog)
+
+State transitions animate based on Verilog output
+
+🕒 Timing Diagram (D3.js)
+tRCD, tRP, tCAS, tCCD_L, tFAW
+
+Syncs with actual Verilog testbench results
+
+🔗 Command Queue + Controller Buffer Viewer
+Visual queue (FIFO or OOO reordering)
+
+Real-time animation as commands are processed
+
+🧪 Simulation Logic (in Verilog)
+Verilog Modules to Include:
+ddr5_controller.v → FSM & command processor
+
+memory_model.v → Bank/row/column state + timing checks
+
+phy_stub.v → For mocking physical interface
+
+testbench.v → To run simulations based on UI input
+
+🔁 VERILOG → UI INTEGRATION OPTIONS
+1. WebAssembly Approach (Browser Execution)
+Compile Verilog to C++ via Verilator
+
+Convert to WASM using Emscripten
+
+Load and run simulation inside browser
+
+Ideal for web deployment (Vercel compatible)
+
+2. Local API Server (More Powerful)
+Next.js frontend sends simulation data to:
+
+Node.js server with child_process that runs iverilog
+
+Capture output (timing log, data burst info)
+
+Send back to Next.js frontend for visualization
+
+Good for heavy logic and accuracy
+
+🚀 Developer Tasks (To Hand Over)
+Frontend Tasks:
+ Create architecture SVG with clickable elements
+
+ Design timing diagram viewer with D3.js
+
+ Set up animated flow between CPU ↔ Controller ↔ Memory
+
+ Create FSM viewer from controller states
+
+ Build stateful command input interface
+
+Backend Tasks:
+ Write Verilog modules:
+
+ddr5_controller.v
+
+memory_model.v
+
+testbench.v
+
+ Add timing logic (tRCD, tRP, tRAS)
+
+ Integrate simulation output with frontend
+
+ Optionally compile Verilog to WebAssembly using Verilator
