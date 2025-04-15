@@ -206,7 +206,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       if (!result.success) {
         set({ error: result.error });
       }
-    } catch (error) {
+    } catch (error: any) {
       set({
         isRunning: false,
         error: error.message || 'Failed to run simulation',
