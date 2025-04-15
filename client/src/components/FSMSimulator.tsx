@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useSimulationStore } from '@/lib/store';
+import { useEffect, useState, useRef } from 'react';
 
 // Define FSM state positions
 const statePositions = {
@@ -23,8 +24,12 @@ const transitions = {
 
 // Path generators for transitions
 const getPathBetweenStates = (from: string, to: string) => {
+  if (!from || !to || from === to) return '';
+  
   const fromPos = statePositions[from as keyof typeof statePositions];
   const toPos = statePositions[to as keyof typeof statePositions];
+  
+  if (!fromPos || !toPos) return '';
   
   // Generate a curved path
   const midX = (fromPos.x + toPos.x) / 2;
@@ -33,10 +38,65 @@ const getPathBetweenStates = (from: string, to: string) => {
   return `M ${fromPos.x} ${fromPos.y} Q ${midX} ${midY} ${toPos.x} ${toPos.y}`;
 };
 
+// Get fixed paths for predefined transitions
+const getTransitionPath = (from: string, to: string) => {
+  const paths: Record<string, string> = {
+    'IDLE-ACTIVATE': 'M 370 85 Q 320 100 280 130',
+    'IDLE-WRITE': 'M 430 85 Q 450 120 530 130',
+    'ACTIVATE-PRECHARGE': 'M 230 185 Q 200 210 130 220',
+    'ACTIVATE-READ': 'M 280 175 Q 320 200 370 220',
+    'READ-WRITE': 'M 440 240 Q 490 240 520 180',
+    'WRITE-IDLE': 'M 530 115 Q 480 80 430 70',
+    'PRECHARGE-READ': 'M 140 240 Q 220 280 360 260',
+    'READ-REFRESH': 'M 440 240 Q 540 270 670 250',
+    'REFRESH-IDLE': 'M 690 200 Q 650 120 430 60',
+    'PRECHARGE-IDLE': 'M 130 215 Q 200 140 370 70',
+    'READ-IDLE': 'M 380 205 Q 360 140 380 90',
+    'WRITE-PRECHARGE': 'M 520 180 Q 400 230 140 240',
+    'READ-PRECHARGE': 'M 360 240 Q 280 260 140 240',
+    'ACTIVATE-IDLE': 'M 280 130 Q 320 100 370 85',
+    'ACTIVATE-WRITE': 'M 290 150 Q 400 130 510 150',
+  };
+  
+  const key = `${from}-${to}`;
+  if (paths[key]) {
+    return paths[key];
+  }
+  
+  return getPathBetweenStates(from, to);
+};
+
 const FSMSimulator = () => {
   const { simulationState } = useSimulationStore();
   const currentState = simulationState.currentState;
-  const prevState = simulationState.currentState === 'IDLE' ? 'IDLE' : 'IDLE'; // Simplified logic
+  const [prevState, setPrevState] = useState<string>('IDLE');
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionPath, setTransitionPath] = useState('');
+  const lastState = useRef(currentState);
+  
+  // Track state transitions for animation
+  useEffect(() => {
+    if (currentState !== lastState.current) {
+      // Store the previous state before updating
+      const previousState = lastState.current;
+      lastState.current = currentState;
+      setPrevState(previousState);
+      
+      // Set the transition path
+      const path = getTransitionPath(previousState, currentState);
+      setTransitionPath(path);
+      
+      // Show transition animation
+      setShowTransition(true);
+      
+      // Hide transition after animation completes
+      const timer = setTimeout(() => {
+        setShowTransition(false);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentState]);
   
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
@@ -45,6 +105,12 @@ const FSMSimulator = () => {
         <div className="flex items-center space-x-2">
           <span className="text-xs text-gray-500">Current State:</span>
           <span className="text-xs font-mono bg-indigo-500 text-white px-2 py-1 rounded">{currentState}</span>
+          {showTransition && (
+            <span className="text-xs font-mono bg-amber-100 text-amber-800 px-2 py-1 ml-2 rounded flex items-center">
+              <span className="animate-pulse mr-1 inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+              Transition: {prevState} → {currentState}
+            </span>
+          )}
         </div>
       </div>
 
@@ -182,9 +248,9 @@ const FSMSimulator = () => {
           </g>
           
           {/* Current Transition Highlight */}
-          {prevState !== currentState && (
+          {showTransition && transitionPath && (
             <motion.path 
-              d={getPathBetweenStates(prevState, currentState)}
+              d={transitionPath}
               stroke="#6366F1" 
               strokeWidth="3" 
               fill="none" 
@@ -192,7 +258,7 @@ const FSMSimulator = () => {
               strokeDasharray="5,2"
               initial={{ pathLength: 0, opacity: 0 }}
               animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
+              transition={{ duration: 1.5, ease: "easeInOut" }}
             />
           )}
           

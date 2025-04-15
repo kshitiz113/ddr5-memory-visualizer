@@ -52,12 +52,12 @@ const DataTransferVisualizer = () => {
         await cpuToControllerAnimation.start({
           x: [0, 100],
           opacity: [0, 1, 1],
-          transition: { duration: 0.8, ease: "easeInOut" }
+          transition: { duration: 1.8, ease: "easeInOut" }
         });
         
         // Stage 2: Command Processing in Controller
         setAnimationStage('processing_in_controller');
-        await new Promise(resolve => setTimeout(resolve, 600));
+        await new Promise(resolve => setTimeout(resolve, 1200));
         
         // Update the current command type display
         setDataValue(activeCommand?.type || null);
@@ -67,7 +67,7 @@ const DataTransferVisualizer = () => {
         await controllerToPhyAnimation.start({
           x: [0, 100],
           opacity: [0, 1, 1],
-          transition: { duration: 0.8, ease: "easeInOut" }
+          transition: { duration: 1.8, ease: "easeInOut" }
         });
         
         // Stage 4: PHY to Memory
@@ -75,7 +75,7 @@ const DataTransferVisualizer = () => {
         await phyToMemoryAnimation.start({
           x: [0, 100],
           opacity: [0, 1, 1],
-          transition: { duration: 0.8, ease: "easeInOut" }
+          transition: { duration: 1.8, ease: "easeInOut" }
         });
         
         // Highlight appropriate memory components
@@ -98,18 +98,21 @@ const DataTransferVisualizer = () => {
             await dataBusAnimation.start({
               opacity: [0, 1],
               y: [10, 0],
-              transition: { duration: 0.5, ease: "easeOut" }
+              transition: { duration: 1.2, ease: "easeOut" }
             });
+            
+            // Pause to show data on bus clearly
+            await new Promise(resolve => setTimeout(resolve, 800));
             
             // Stage 6: Store data in memory bank
             setAnimationStage('store_in_bank');
             await bankStorageAnimation.start({
               opacity: [0, 1],
               scale: [0.8, 1],
-              transition: { duration: 0.5, ease: "easeOut" }
+              transition: { duration: 1.0, ease: "easeOut" }
             });
             
-            await new Promise(resolve => setTimeout(resolve, 800));
+            await new Promise(resolve => setTimeout(resolve, 1500));
             
             // Fade out data
             await bankStorageAnimation.start({
@@ -201,12 +204,8 @@ const DataTransferVisualizer = () => {
         dataBusAnimation.set({ opacity: 0, y: 10 });
         bankStorageAnimation.set({ opacity: 0, scale: 1, scaleY: 1 });
         
-        // Set a timer to restart animation loop
-        animationTimerRef.current = setTimeout(() => {
-          if (simulationState.status === 'running' || activeCommand) {
-            runDetailedAnimation(commandType);
-          }
-        }, 1000);
+        // Do not automatically restart animation
+        // Animation will only play once per command
         
       } catch (err) {
         console.error("Animation error:", err);
