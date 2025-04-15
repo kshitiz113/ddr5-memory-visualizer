@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-import { SimulationResults, NewSimulationRequest, MemoryCommand, ControllerState, TimingEvent } from '@shared/types';
+import { SimulationResults, NewSimulationRequest, MemoryCommand, ControllerState, TimingEvent, CommandType } from '@shared/types';
 import { nanoid } from 'nanoid';
 
 const execAsync = promisify(exec);
@@ -47,44 +47,106 @@ export async function runSimulation(request: NewSimulationRequest): Promise<Simu
     const commands = request.commands;
     let cycle = 0;
     
-    // Generate timing data based on commands
-    commands.forEach((cmd, index) => {
-      // Add state change
-      const stateForCmd = commandTypeToState(cmd.type);
-      simLog += `${cycle * 10},STATE,${stateForCmd}\n`;
+    // For ACTIVATE-READ-PRECHARGE sequence simulation
+    const needsActivation = (cmd: any) => ['READ', 'WRITE'].includes(cmd.type);
+    const needsPrecharge = (cmd: any, nextCmd: any | null) => 
+      ['READ', 'WRITE'].includes(cmd.type) && 
+      (nextCmd === null || nextCmd.bankGroup !== cmd.bankGroup || nextCmd.bank !== cmd.bank);
+    
+    // Generate timing data based on commands with more realistic DDR5 command sequences
+    for (let i = 0; i < commands.length; i++) {
+      const cmd = commands[i];
+      const nextCmd = i < commands.length - 1 ? commands[i + 1] : null;
+      let currentState: ControllerState = 'IDLE';
+      
+      // If READ or WRITE, we first need to ACTIVATE
+      if (needsActivation(cmd)) {
+        // First IDLE -> ACTIVATE transition
+        simLog += `${cycle * 10},STATE,IDLE\n`;
+        simLog += `${cycle * 10},SIGNAL,state,0\n`;
+        simLog += `${cycle * 10},SIGNAL,cmd_valid,0\n`;
+        simLog += `${cycle * 10},SIGNAL,cmd_ready,1\n`;
+        cycle++;
+        
+        // Activate command
+        currentState = 'ACTIVATE';
+        simLog += `${cycle * 10},STATE,${currentState}\n`;
+        simLog += `${cycle * 10},${cycle},${stateToValue(currentState)},ACTIVATE,${cmd.channel},${cmd.bankGroup},${cmd.bank},${cmd.row}\n`;
+        
+        // Signal updates for ACTIVATE
+        for (let j = 0; j < 3; j++) {
+          const subcycle = cycle + j;
+          simLog += `${subcycle * 10},SIGNAL,cycle,${subcycle}\n`;
+          simLog += `${subcycle * 10},SIGNAL,state,${stateToValue(currentState)}\n`;
+          simLog += `${subcycle * 10},SIGNAL,cmd_valid,${j === 0 ? 1 : 0}\n`;
+          simLog += `${subcycle * 10},SIGNAL,cmd_ready,${j === 1 ? 1 : 0}\n`;
+          simLog += `${subcycle * 10},SIGNAL,active_channel,${cmd.channel}\n`;
+          simLog += `${subcycle * 10},SIGNAL,active_bank_group,${cmd.bankGroup}\n`;
+          simLog += `${subcycle * 10},SIGNAL,active_bank,${cmd.bank}\n`;
+        }
+        
+        cycle += 3; // Move to next command after ACTIVATE
+      }
+      
+      // Main command (READ, WRITE, REFRESH, etc.)
+      currentState = commandTypeToState(cmd.type);
+      simLog += `${cycle * 10},STATE,${currentState}\n`;
       
       // Add command execution
-      simLog += `${cycle * 10},${cycle},${stateToValue(stateForCmd)},${cmd.type},${cmd.channel},${cmd.bankGroup},${cmd.bank}`;
+      simLog += `${cycle * 10},${cycle},${stateToValue(currentState)},${cmd.type},${cmd.channel},${cmd.bankGroup},${cmd.bank}`;
       if (cmd.row) simLog += `,${cmd.row}`;
       if (cmd.column) simLog += `,${cmd.column}`;
       if (cmd.data) simLog += `,${cmd.data}`;
       simLog += '\n';
       
-      // Add signal updates for timing diagram
-      for (let i = 0; i < 3; i++) {
-        const subcycle = cycle + i;
+      // Signal updates for main command
+      for (let j = 0; j < 3; j++) {
+        const subcycle = cycle + j;
         simLog += `${subcycle * 10},SIGNAL,cycle,${subcycle}\n`;
-        simLog += `${subcycle * 10},SIGNAL,state,${stateToValue(stateForCmd)}\n`;
-        simLog += `${subcycle * 10},SIGNAL,cmd_valid,${i === 0 ? 1 : 0}\n`;
-        simLog += `${subcycle * 10},SIGNAL,cmd_ready,${i === 1 ? 1 : 0}\n`;
+        simLog += `${subcycle * 10},SIGNAL,state,${stateToValue(currentState)}\n`;
+        simLog += `${subcycle * 10},SIGNAL,cmd_valid,${j === 0 ? 1 : 0}\n`;
+        simLog += `${subcycle * 10},SIGNAL,cmd_ready,${j === 1 ? 1 : 0}\n`;
         simLog += `${subcycle * 10},SIGNAL,active_channel,${cmd.channel}\n`;
         simLog += `${subcycle * 10},SIGNAL,active_bank_group,${cmd.bankGroup}\n`;
         simLog += `${subcycle * 10},SIGNAL,active_bank,${cmd.bank}\n`;
       }
       
-      // Move to next command cycle
-      cycle += 3;
-    });
+      cycle += 3; // Move to next command cycle
+      
+      // If READ or WRITE, we need to PRECHARGE after
+      if (needsPrecharge(cmd, nextCmd)) {
+        currentState = 'PRECHARGE';
+        simLog += `${cycle * 10},STATE,${currentState}\n`;
+        simLog += `${cycle * 10},${cycle},${stateToValue(currentState)},PRECHARGE,${cmd.channel},${cmd.bankGroup},${cmd.bank}\n`;
+        
+        // Signal updates for PRECHARGE
+        for (let j = 0; j < 3; j++) {
+          const subcycle = cycle + j;
+          simLog += `${subcycle * 10},SIGNAL,cycle,${subcycle}\n`;
+          simLog += `${subcycle * 10},SIGNAL,state,${stateToValue(currentState)}\n`;
+          simLog += `${subcycle * 10},SIGNAL,cmd_valid,${j === 0 ? 1 : 0}\n`;
+          simLog += `${subcycle * 10},SIGNAL,cmd_ready,${j === 1 ? 1 : 0}\n`;
+          simLog += `${subcycle * 10},SIGNAL,active_channel,${cmd.channel}\n`;
+          simLog += `${subcycle * 10},SIGNAL,active_bank_group,${cmd.bankGroup}\n`;
+          simLog += `${subcycle * 10},SIGNAL,active_bank,${cmd.bank}\n`;
+        }
+        
+        cycle += 3; // Move to next command after PRECHARGE
+      }
+    }
     
-    // Return to IDLE state
+    // Return to IDLE state at the end
     simLog += `${cycle * 10},STATE,IDLE\n`;
     simLog += `${cycle * 10},SIGNAL,state,0\n`;
+    simLog += `${cycle * 10},SIGNAL,cycle,${cycle}\n`;
+    simLog += `${cycle * 10},SIGNAL,cmd_valid,0\n`;
+    simLog += `${cycle * 10},SIGNAL,cmd_ready,1\n`;
     
     // Process results
     const result = processSimulationResults(simLog, request.commands);
     
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Simulation error:', error);
     return {
       simulationState: {
@@ -436,7 +498,7 @@ function processSimulationResults(
       currentState = getControllerStateString(stateVal);
       
       // Update command status
-      const cmdType = parts[3] as CommandType;
+      const cmdType = parts[3] as any;
       const cmdChannel = parseInt(parts[4], 10);
       const cmdBankGroup = parseInt(parts[5], 10);
       const cmdBank = parseInt(parts[6], 10);

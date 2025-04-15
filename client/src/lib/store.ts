@@ -141,10 +141,43 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   runSimulation: async () => {
     const state = get();
     
-    // Set as running
-    set({ isRunning: true, error: null });
+    // Validate commands
+    if (state.simulationState.commandQueue.length === 0) {
+      set({ 
+        error: 'No commands in queue. Add at least one command before running the simulation.',
+        isRunning: false 
+      });
+      return;
+    }
+    
+    // Set simulation as running
+    set({ 
+      isRunning: true, 
+      error: null,
+      simulationState: {
+        ...state.simulationState,
+        status: 'running'
+      }
+    });
     
     try {
+      // Mark first command as processing
+      const updatedQueue = [...state.simulationState.commandQueue];
+      if (updatedQueue.length > 0 && updatedQueue[0].status === 'queued') {
+        updatedQueue[0].status = 'processing';
+        
+        set({
+          simulationState: {
+            ...state.simulationState,
+            commandQueue: updatedQueue,
+            currentCommand: updatedQueue[0]
+          }
+        });
+      }
+      
+      // Add a slight delay to show processing animation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Prepare simulation request
       const commands = state.simulationState.commandQueue.map(cmd => ({
         type: cmd.type,
@@ -162,7 +195,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       
       // Update state with simulation results
       set({
-        simulationState: result.simulationState,
+        simulationState: {
+          ...result.simulationState,
+          status: 'completed' // Ensure status is set to completed
+        },
         isRunning: false,
       });
       
@@ -174,6 +210,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       set({
         isRunning: false,
         error: error.message || 'Failed to run simulation',
+        simulationState: {
+          ...state.simulationState,
+          status: 'error'
+        }
       });
     }
   },
