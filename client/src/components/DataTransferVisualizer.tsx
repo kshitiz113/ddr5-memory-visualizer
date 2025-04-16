@@ -90,10 +90,43 @@ const DataTransferVisualizer = () => {
         // Handle different command types
         switch (commandType) {
           case 'WRITE':
-            // Update data value with write data
-            setDataValue(activeCommand?.data || "0x00000000");
+            // Stage 5a: Verify row activation
+            setAnimationStage('check_row_activation');
+            // Show a pulsing highlight on the memory bank to indicate checking
+            await bankStorageAnimation.start({
+              opacity: [0.3, 0.7, 0.3],
+              scale: [0.95, 1.05, 0.95],
+              transition: { 
+                duration: 1.0, 
+                ease: "easeInOut",
+                repeat: 1,
+                repeatType: "reverse"
+              }
+            });
             
-            // Stage 5: Show Data on Bus for WRITE
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5b: Display write recovery time
+            setAnimationStage('write_recovery');
+            setDataValue("tWR: 12 cycles");
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5c: Prepare data for writing
+            setAnimationStage('data_preparation');
+            setDataValue(activeCommand?.data || "0x00000000");
+            await bankStorageAnimation.start({
+              opacity: [0, 0.7],
+              scale: [0.8, 1],
+              transition: { duration: 0.8, ease: "easeOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5d: Data on internal controller bus
+            setAnimationStage('controller_data_bus');
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5e: Show Data on external Bus for WRITE
             setAnimationStage('data_on_bus');
             await dataBusAnimation.start({
               opacity: [0, 1],
@@ -102,51 +135,150 @@ const DataTransferVisualizer = () => {
             });
             
             // Pause to show data on bus clearly
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5f: Data arrives at memory interface
+            setAnimationStage('data_at_memory');
+            await dataBusAnimation.start({
+              x: [0, 60],
+              opacity: [1, 0.7],
+              transition: { duration: 1.0, ease: "easeInOut" }
+            });
+            
             await new Promise(resolve => setTimeout(resolve, 800));
             
-            // Stage 6: Store data in memory bank
+            // Stage 5g: Input buffers in memory
+            setAnimationStage('memory_input_buffers');
+            await bankStorageAnimation.start({
+              opacity: [0.7, 0.9],
+              scale: [0.9, 1.1],
+              transition: { duration: 0.8, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5h: Store data in memory bank
             setAnimationStage('store_in_bank');
+            await bankStorageAnimation.start({
+              opacity: [0.9, 1],
+              scale: [1, 1.05],
+              transition: { duration: 1.0, ease: "easeOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5i: Send write acknowledgement 
+            setAnimationStage('write_ack');
+            await phyToMemoryAnimation.start({
+              x: [100, 0],
+              opacity: [0, 0.7, 0],
+              transition: { duration: 1.0, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Fade out data visualization
+            await bankStorageAnimation.start({
+              opacity: [1, 0.5],
+              transition: { duration: 0.5 }
+            });
+            break;
+            
+          case 'READ':
+            // Stage 5a: Check row activation status
+            setAnimationStage('check_row_activation');
+            // Show a pulsing highlight on the memory bank to indicate checking
+            await bankStorageAnimation.start({
+              opacity: [0.3, 0.7, 0.3],
+              scale: [0.95, 1.05, 0.95],
+              transition: { 
+                duration: 1.0, 
+                ease: "easeInOut",
+                repeat: 1,
+                repeatType: "reverse"
+              }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5b: Display timing parameters (e.g., CAS Latency)
+            setAnimationStage('cas_latency');
+            setDataValue("tCAS: 16 cycles");
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5c: Activate internal read circuitry 
+            setAnimationStage('read_from_bank');
             await bankStorageAnimation.start({
               opacity: [0, 1],
               scale: [0.8, 1],
               transition: { duration: 1.0, ease: "easeOut" }
             });
             
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, 800));
             
-            // Fade out data
+            // Stage 5d: Generate read data value from the specified location
+            // Using column address (if provided) or generating deterministic value
+            const colAddr = activeCommand?.column ? parseInt(activeCommand.column.replace('0x', ''), 16) : 0;
+            const rowAddr = activeCommand?.row ? parseInt(activeCommand.row.replace('0x', ''), 16) : 0;
+            // Generate deterministic data based on addresses for educational consistency
+            const readData = `0x${((rowAddr * 256 + colAddr) % 0xFFFFFFFF).toString(16).padStart(8, '0').toUpperCase()}`;
+            setDataValue(readData);
+            
+            // Stage 5e: Data sense amplifiers activated (internal to DRAM)
+            setAnimationStage('sense_amplifiers');
             await bankStorageAnimation.start({
-              opacity: [1, 0],
-              transition: { duration: 0.3 }
-            });
-            break;
-            
-          case 'READ':
-            // Simulate data being read from memory
-            setAnimationStage('read_from_bank');
-            await bankStorageAnimation.start({
-              opacity: [0, 1],
-              scale: [0.8, 1],
-              transition: { duration: 0.5, ease: "easeOut" }
-            });
-            
-            // Update data value with read data (simulated)
-            setDataValue("0x" + Math.floor(Math.random() * 0xFFFFFFFF).toString(16).padStart(8, '0').toUpperCase());
-            
-            // Stage 5: Show Data on Bus for READ
-            setAnimationStage('data_on_bus');
-            await dataBusAnimation.start({
-              opacity: [0, 1],
-              y: [10, 0],
-              transition: { duration: 0.5, ease: "easeOut" }
+              opacity: [0.7, 1],
+              scale: [0.9, 1.1],
+              transition: { duration: 0.8, ease: "easeInOut" }
             });
             
             await new Promise(resolve => setTimeout(resolve, 800));
             
-            // Fade out data
+            // Stage 5f: Data placed on the internal memory data bus
+            setAnimationStage('internal_data_bus');
+            await bankStorageAnimation.start({
+              opacity: [0.8, 1],
+              y: [-5, 0],
+              transition: { duration: 0.8, ease: "easeOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5g: Show Data on external data Bus for READ
+            setAnimationStage('data_on_bus');
+            await dataBusAnimation.start({
+              opacity: [0, 1],
+              y: [10, 0],
+              transition: { duration: 1.2, ease: "easeOut" }
+            });
+            
+            // Show data moving across the bus for longer
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Stage 5h: Data arrives at memory controller
+            setAnimationStage('data_to_controller');
+            await dataBusAnimation.start({
+              x: [0, -60],
+              opacity: [1, 0.7],
+              transition: { duration: 1.0, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5i: Data delivered to CPU
+            setAnimationStage('data_to_cpu');
+            await cpuToControllerAnimation.start({
+              x: [100, 0],
+              opacity: [0.7, 0],
+              transition: { duration: 1.0, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Fade out all animations
             await dataBusAnimation.start({
               opacity: [1, 0],
-              transition: { duration: 0.3 }
+              transition: { duration: 0.5 }
             });
             break;
             
@@ -274,17 +406,35 @@ const DataTransferVisualizer = () => {
   // Helper function to get a readable animation stage name
   const getAnimationStageName = () => {
     switch(animationStage) {
+      // Common stages
       case 'cpu_to_controller': return 'CPU → Controller';
       case 'processing_in_controller': return 'Processing in Controller';
       case 'controller_to_phy': return 'Controller → PHY';
       case 'phy_to_memory': return 'PHY → Memory';
-      case 'data_on_bus': return 'Data on Bus';
-      case 'store_in_bank': return 'Storing in Bank';
-      case 'read_from_bank': return 'Reading from Bank';
-      case 'activate_row': return 'Activating Row';
-      case 'precharge': return 'Precharging Bank';
-      case 'refresh': return 'Refreshing Memory';
       case 'completed': return 'Command Completed';
+      
+      // READ specific stages
+      case 'check_row_activation': return 'Checking Row Activation';
+      case 'cas_latency': return 'CAS Latency (tCAS)';
+      case 'read_from_bank': return 'Reading from Bank';
+      case 'sense_amplifiers': return 'Activating Sense Amplifiers';
+      case 'internal_data_bus': return 'Internal Data Bus Transfer';
+      case 'data_on_bus': return 'Data on External Bus';
+      case 'data_to_controller': return 'Data → Controller';
+      case 'data_to_cpu': return 'Data → CPU';
+      
+      // WRITE specific stages
+      case 'store_in_bank': return 'Storing in Bank';
+      
+      // ACTIVATE specific stages
+      case 'activate_row': return 'Activating Row';
+      
+      // PRECHARGE specific stages
+      case 'precharge': return 'Precharging Bank';
+      
+      // REFRESH specific stages
+      case 'refresh': return 'Refreshing Memory';
+      
       default: return 'Idle';
     }
   };
@@ -333,7 +483,7 @@ const DataTransferVisualizer = () => {
     );
   };
 
-  // Memory Bank Visualization
+  // Memory Bank Visualization with detailed components
   const MemoryBankDetail = () => {
     if (currentHighlight.channel === -1) return null;
     
@@ -356,31 +506,158 @@ const DataTransferVisualizer = () => {
           strokeDasharray="2 1"
         />
         
-        {/* Bank Info */}
+        {/* Bank Info with detailed addressing */}
         <text x="670" y="57" textAnchor="middle" fontFamily="Inter" fontSize="7" fill="#047857">
           {`CH:${currentHighlight.channel} BG:${currentHighlight.bankGroup} B:${currentHighlight.bank}`}
         </text>
         
-        {/* Row Visualization - Only show for ACTIVATE/READ/WRITE */}
-        {['activate_row', 'read_from_bank', 'store_in_bank'].includes(animationStage) && (
-          <motion.rect 
-            x="640" 
-            y="60" 
-            width="60" 
-            height="8" 
-            rx="1" 
-            fill={['READ', 'WRITE'].includes(activeCommand?.type || '') ? "#93C5FD" : "#C4B5FD"}
-            initial={{ scaleY: 0, opacity: 0 }}
-            animate={bankStorageAnimation}
-            style={{ transformOrigin: "center top" }}
-          />
+        {/* Show row buffer for READ operation */}
+        {animationStage === 'check_row_activation' && (
+          <g>
+            <rect 
+              x="635" 
+              y="62" 
+              width="70" 
+              height="3" 
+              rx="1" 
+              fill="#D1D5DB" 
+              stroke="#9CA3AF" 
+              strokeWidth="0.5"
+            />
+            <text x="670" y="66" textAnchor="middle" fontFamily="Inter" fontSize="4" fill="#6B7280">
+              Row Buffer Check
+            </text>
+          </g>
         )}
         
-        {/* Data Value - Only show for READ/WRITE */}
+        {/* Show CAS Latency timing */}
+        {animationStage === 'cas_latency' && (
+          <g>
+            <rect 
+              x="635" 
+              y="62" 
+              width="70" 
+              height="10" 
+              rx="1" 
+              fill="#FEF3C7" 
+              stroke="#F59E0B" 
+              strokeWidth="0.5"
+              strokeDasharray="1 1"
+            />
+            <text x="670" y="69" textAnchor="middle" fontFamily="Inter" fontSize="5" fill="#B45309">
+              {dataValue || "tCAS: 16 cycles"}
+            </text>
+          </g>
+        )}
+        
+        {/* Sense Amplifiers for READ operation */}
+        {animationStage === 'sense_amplifiers' && (
+          <g>
+            <rect 
+              x="635" 
+              y="62" 
+              width="70" 
+              height="8" 
+              rx="1" 
+              fill="#FEE2E2" 
+              stroke="#EF4444" 
+              strokeWidth="0.5"
+            />
+            <text x="670" y="68" textAnchor="middle" fontFamily="Inter" fontSize="5" fill="#B91C1C">
+              Sense Amplifiers
+            </text>
+          </g>
+        )}
+        
+        {/* Internal data bus for READ operation */}
+        {animationStage === 'internal_data_bus' && (
+          <g>
+            <rect 
+              x="635" 
+              y="62" 
+              width="70" 
+              height="2" 
+              rx="1" 
+              fill="#E0E7FF" 
+              stroke="#6366F1" 
+              strokeWidth="0.5"
+            />
+            <motion.rect 
+              x="645" 
+              y="60" 
+              width="10" 
+              height="6" 
+              rx="1" 
+              fill="#EF4444"
+              animate={{ 
+                x: [645, 685],
+                transition: { duration: 0.8, ease: "linear", repeat: 1, repeatType: "reverse" }
+              }}
+            />
+            <text x="670" y="68" textAnchor="middle" fontFamily="Inter" fontSize="5" fill="#4F46E5">
+              Internal Data Bus
+            </text>
+          </g>
+        )}
+        
+        {/* Row Visualization - For ACTIVATE/READ/WRITE operations */}
+        {['activate_row', 'read_from_bank', 'store_in_bank'].includes(animationStage) && (
+          <motion.g>
+            {/* Row buffer structure */}
+            <motion.rect 
+              x="640" 
+              y="60" 
+              width="60" 
+              height="8" 
+              rx="1" 
+              fill={['READ', 'WRITE'].includes(activeCommand?.type || '') ? "#93C5FD" : "#C4B5FD"}
+              initial={{ scaleY: 0, opacity: 0 }}
+              animate={bankStorageAnimation}
+              style={{ transformOrigin: "center top" }}
+            />
+            
+            {/* Row address label */}
+            <text x="645" y="66" textAnchor="start" fontFamily="Inter" fontSize="4" fill="#1F2937">
+              {activeCommand?.row && `Row: ${activeCommand.row}`}
+            </text>
+            
+            {/* Column address for READ/WRITE */}
+            {['READ', 'WRITE'].includes(activeCommand?.type || '') && (
+              <text x="695" y="66" textAnchor="end" fontFamily="Inter" fontSize="4" fill="#1F2937">
+                {activeCommand?.column && `Col: ${activeCommand.column}`}
+              </text>
+            )}
+          </motion.g>
+        )}
+        
+        {/* Data Value - Only show for READ/WRITE when data is present */}
         {['data_on_bus', 'store_in_bank', 'read_from_bank'].includes(animationStage) && dataValue && (
-          <text x="670" y="67" textAnchor="middle" fontFamily="monospace" fontSize="6" fill="#1F2937">
+          <text x="670" y="75" textAnchor="middle" fontFamily="monospace" fontSize="6" fill="#1F2937">
             {dataValue}
           </text>
+        )}
+
+        {/* Bank Structure Visualization - More detailed for educational purposes */}
+        {['check_row_activation', 'read_from_bank', 'store_in_bank', 'sense_amplifiers'].includes(animationStage) && (
+          <g transform="translate(640, 83)">
+            <rect width="60" height="10" rx="1" fill="#F3F4F6" stroke="#D1D5DB" strokeWidth="0.5" />
+            <text x="30" y="7" textAnchor="middle" fontFamily="Inter" fontSize="4" fill="#6B7280">
+              Bank Array (16K Rows x 1K Columns)
+            </text>
+            {/* Mini array visualization */}
+            <g transform="translate(5, 12)">
+              {Array.from({length: 5}).map((_, i) => (
+                <rect 
+                  key={i} 
+                  x={i * 10} 
+                  y="0" 
+                  width="8" 
+                  height="1" 
+                  fill={i === 2 ? "#EF4444" : "#E5E7EB"}
+                />
+              ))}
+            </g>
+          </g>
         )}
       </motion.g>
     );
