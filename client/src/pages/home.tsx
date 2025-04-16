@@ -5,6 +5,8 @@ import FSMSimulator from '@/components/FSMSimulator';
 import TimingDiagram from '@/components/TimingDiagram';
 import CommandQueue from '@/components/CommandQueue';
 import CommandPanel from '@/components/CommandPanel';
+import PerformanceMetrics from '@/components/PerformanceMetrics';
+import StepByStepAnimation from '@/components/StepByStepAnimation';
 import { useSimulationStore, Tab } from '@/lib/store';
 
 const Home = () => {

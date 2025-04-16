@@ -4,7 +4,7 @@ import { apiRequest } from './queryClient';
 import { nanoid } from 'nanoid';
 
 // Define tab types
-export type Tab = 'architecture' | 'data-transfer' | 'fsm' | 'timing' | 'command-queue';
+export type Tab = 'architecture' | 'data-transfer' | 'fsm' | 'timing' | 'command-queue' | 'performance' | 'step-by-step';
 
 // Define simulation store state
 interface SimulationStore {
