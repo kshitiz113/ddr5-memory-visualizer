@@ -283,31 +283,144 @@ const DataTransferVisualizer = () => {
             break;
             
           case 'ACTIVATE':
-            // Show row activation animation
+            // Stage 5a: Verify bank is not already active
+            setAnimationStage('check_row_activation');
+            // Show a pulsing highlight on the memory bank to indicate checking
+            await bankStorageAnimation.start({
+              opacity: [0.3, 0.7, 0.3],
+              scale: [0.95, 1.05, 0.95],
+              transition: { 
+                duration: 1.0, 
+                ease: "easeInOut",
+                repeat: 1,
+                repeatType: "reverse"
+              }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5b: Display RAS to CAS delay (tRCD)
+            setAnimationStage('row_activation_timing');
+            setDataValue("tRCD: 14 cycles");
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5c: Show row address decoder activating
+            setAnimationStage('row_decoder');
+            await bankStorageAnimation.start({
+              opacity: [0, 0.7],
+              scale: [0.8, 1],
+              transition: { duration: 0.8, ease: "easeOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5d: Memory array to row buffer transfer
+            setAnimationStage('row_to_buffer');
+            await bankStorageAnimation.start({
+              opacity: [0.7, 1],
+              scale: [0.9, 1.1],
+              transition: { duration: 0.8, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5e: Row fully activated
             setAnimationStage('activate_row');
             await bankStorageAnimation.start({
-              opacity: [0, 1],
-              scaleY: [0, 1],
-              transition: { duration: 0.7, ease: "easeOut" }
+              opacity: [0.9, 1],
+              scaleY: [0.5, 1],
+              transition: { duration: 1.0, ease: "easeOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            break;
+            
+          case 'PRECHARGE':
+            // Stage 5a: Verify bank is active
+            setAnimationStage('check_row_activation');
+            // Show a pulsing highlight on the memory bank to indicate checking
+            await bankStorageAnimation.start({
+              opacity: [0.3, 0.7, 0.3],
+              scale: [0.95, 1.05, 0.95],
+              transition: { 
+                duration: 1.0, 
+                ease: "easeInOut",
+                repeat: 1,
+                repeatType: "reverse"
+              }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5b: Show precharge timing (tRP)
+            setAnimationStage('precharge_timing');
+            setDataValue("tRP: 14 cycles");
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5c: Write back modified data from row buffer to array (if any)
+            setAnimationStage('buffer_to_array');
+            await bankStorageAnimation.start({
+              opacity: [0.7, 1],
+              scale: [1, 0.9],
+              transition: { duration: 0.8, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5d: Deactivate sense amplifiers
+            setAnimationStage('deactivate_sense_amps');
+            await bankStorageAnimation.start({
+              opacity: [1, 0.7],
+              scale: [0.9, 0.8],
+              transition: { duration: 0.8, ease: "easeInOut" }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5e: Fully precharge and close row
+            setAnimationStage('precharge');
+            await bankStorageAnimation.start({
+              opacity: [0.7, 0],
+              scaleY: [1, 0],
+              transition: { duration: 1.0, ease: "easeInOut" }
             });
             
             await new Promise(resolve => setTimeout(resolve, 800));
             break;
             
-          case 'PRECHARGE':
-            // Show precharge animation
-            setAnimationStage('precharge');
+          case 'REFRESH':
+            // Stage 5a: Begin refresh cycle - show timing
+            setAnimationStage('refresh_timing');
+            setDataValue("tRFC: 350ns");
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // Stage 5b: Precharge all banks
+            setAnimationStage('refresh_precharge');
             await bankStorageAnimation.start({
-              opacity: [1, 0],
-              scaleY: [1, 0],
-              transition: { duration: 0.7, ease: "easeInOut" }
+              opacity: [0.3, 0.7],
+              scale: [0.9, 1],
+              transition: { 
+                duration: 1.0, 
+                ease: "easeInOut"
+              }
             });
             
-            await new Promise(resolve => setTimeout(resolve, 500));
-            break;
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-          case 'REFRESH':
-            // Show refresh animation (pulsing)
+            // Stage 5c: Activate refresh circuits
+            setAnimationStage('refresh_activate');
+            await bankStorageAnimation.start({
+              opacity: [0.7, 1],
+              scale: [1, 1.05],
+              transition: { 
+                duration: 0.8, 
+                ease: "easeInOut"
+              }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Stage 5d: Show refresh operation (pulsing to represent multiple bank refresh)
             setAnimationStage('refresh');
             await bankStorageAnimation.start({
               opacity: [0.5, 1, 0.5],
@@ -320,7 +433,20 @@ const DataTransferVisualizer = () => {
               }
             });
             
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Stage 5e: Complete refresh cycle
+            setAnimationStage('refresh_complete');
+            await bankStorageAnimation.start({
+              opacity: [0.7, 0.5],
+              scale: [1, 0.95],
+              transition: { 
+                duration: 0.8, 
+                ease: "easeOut"
+              }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
             break;
         }
         
@@ -412,28 +538,44 @@ const DataTransferVisualizer = () => {
       case 'controller_to_phy': return 'Controller → PHY';
       case 'phy_to_memory': return 'PHY → Memory';
       case 'completed': return 'Command Completed';
+      case 'check_row_activation': return 'Checking Row Activation';
+      case 'data_on_bus': return 'Data on External Bus';
       
       // READ specific stages
-      case 'check_row_activation': return 'Checking Row Activation';
       case 'cas_latency': return 'CAS Latency (tCAS)';
       case 'read_from_bank': return 'Reading from Bank';
       case 'sense_amplifiers': return 'Activating Sense Amplifiers';
       case 'internal_data_bus': return 'Internal Data Bus Transfer';
-      case 'data_on_bus': return 'Data on External Bus';
       case 'data_to_controller': return 'Data → Controller';
       case 'data_to_cpu': return 'Data → CPU';
       
       // WRITE specific stages
+      case 'write_recovery': return 'Write Recovery Time (tWR)';
+      case 'data_preparation': return 'Data Preparation';
+      case 'controller_data_bus': return 'Controller Data Bus';
+      case 'data_at_memory': return 'Data Arrives at Memory';
+      case 'memory_input_buffers': return 'Memory Input Buffers';
       case 'store_in_bank': return 'Storing in Bank';
+      case 'write_ack': return 'Write Acknowledgement';
       
       // ACTIVATE specific stages
       case 'activate_row': return 'Activating Row';
+      case 'row_activation_timing': return 'Row Activation Timing (tRCD)';
+      case 'row_to_buffer': return 'Row → Buffer Transfer';
       
       // PRECHARGE specific stages
       case 'precharge': return 'Precharging Bank';
+      case 'precharge_timing': return 'Precharge Timing (tRP)';
+      case 'buffer_to_array': return 'Buffer → Array Transfer';
+      case 'deactivate_sense_amps': return 'Deactivating Sense Amplifiers';
+      case 'row_decoder': return 'Row Address Decoder';
       
       // REFRESH specific stages
-      case 'refresh': return 'Refreshing Memory';
+      case 'refresh': return 'Refreshing Memory Cells';
+      case 'refresh_timing': return 'Refresh Cycle Time (tRFC)';
+      case 'refresh_precharge': return 'Precharging All Banks';
+      case 'refresh_activate': return 'Activating Refresh Circuits';
+      case 'refresh_complete': return 'Completing Refresh Cycle';
       
       default: return 'Idle';
     }
