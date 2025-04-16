@@ -8,9 +8,11 @@ import CommandPanel from '@/components/CommandPanel';
 import PerformanceMetrics from '@/components/PerformanceMetrics';
 import StepByStepAnimation from '@/components/StepByStepAnimation';
 import { useSimulationStore, Tab } from '@/lib/store';
+import { CommandType } from '@shared/types';
 
 const Home = () => {
   const { activeTab, setActiveTab, runSimulation, isRunning, simulationState, error } = useSimulationStore();
+  const [selectedCommandType, setSelectedCommandType] = useState<CommandType>('READ');
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
@@ -19,6 +21,10 @@ const Home = () => {
   const handleRunSimulation = () => {
     runSimulation();
   };
+  
+  const handleCommandTypeChange = (type: CommandType) => {
+    setSelectedCommandType(type);
+  };
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -26,33 +32,45 @@ const Home = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tabs */}
         <div className="bg-white border-b border-gray-200 px-4">
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 overflow-x-auto">
             <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'architecture' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'architecture' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
               onClick={() => handleTabChange('architecture')}
             >
               Architecture View
             </button>
             <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'data-transfer' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'data-transfer' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
               onClick={() => handleTabChange('data-transfer')}
             >
               Data Transfer
             </button>
             <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'fsm' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'step-by-step' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              onClick={() => handleTabChange('step-by-step')}
+            >
+              Step-by-Step Animation
+            </button>
+            <button 
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'fsm' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
               onClick={() => handleTabChange('fsm')}
             >
               FSM Simulator
             </button>
             <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'timing' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'timing' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
               onClick={() => handleTabChange('timing')}
             >
               Timing Diagrams
             </button>
             <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'command-queue' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'performance' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
+              onClick={() => handleTabChange('performance')}
+            >
+              Performance Metrics
+            </button>
+            <button 
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === 'command-queue' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300'}`}
               onClick={() => handleTabChange('command-queue')}
             >
               Command Queue
@@ -70,12 +88,33 @@ const Home = () => {
             {activeTab === 'fsm' && <FSMSimulator />}
             {activeTab === 'timing' && <TimingDiagram />}
             {activeTab === 'command-queue' && <CommandQueue />}
-            
-            {/* Always show FSM Simulator for better visualization */}
-            {activeTab !== 'fsm' && <FSMSimulator />}
-            
-            {/* Always show Data Transfer for better visualization */}
-            {activeTab !== 'data-transfer' && <DataTransferVisualizer />}
+            {activeTab === 'performance' && <PerformanceMetrics simulationState={simulationState} />}
+            {activeTab === 'step-by-step' && (
+              <>
+                <div className="mb-4 border border-gray-200 bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium mb-2">Select Command Type to Animate:</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {['READ', 'WRITE', 'ACTIVATE', 'PRECHARGE', 'REFRESH', 'ZQCAL'].map((type) => (
+                      <button
+                        key={type}
+                        className={`px-3 py-1 text-xs font-medium rounded-md ${
+                          selectedCommandType === type 
+                            ? 'bg-primary text-white' 
+                            : 'bg-white border border-gray-200 hover:bg-gray-100'
+                        }`}
+                        onClick={() => handleCommandTypeChange(type as CommandType)}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <StepByStepAnimation 
+                  commandType={selectedCommandType} 
+                  simulationState={simulationState}
+                />
+              </>
+            )}
             
             {/* Error display */}
             {error && (
